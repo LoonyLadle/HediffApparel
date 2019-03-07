@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<Defs>
+  <HediffDef Name="HediffApparel_Base" Abstract="True">
+    <everCurableByItem>false</everCurableByItem>
+    <minSeverity>0.001</minSeverity>
+    <maxSeverity>1</maxSeverity>
+    <isBad>false</isBad>
+  </HediffDef>
+</Defs>
