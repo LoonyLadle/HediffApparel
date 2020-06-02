@@ -26,7 +26,7 @@ namespace HediffApparel
 
 	public class CompHediffApparel : ThingComp
 	{
-		public CompProperties_HediffApparel Props => (CompProperties_HediffApparel)base.props;
+		public CompProperties_HediffApparel Props => (CompProperties_HediffApparel)props;
 
 		private float lastSeverity;
 		private Pawn lastWearer;
