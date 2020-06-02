@@ -40,43 +40,41 @@ namespace HediffApparel
 
 		public IEnumerable<BodyPartRecord> MyGetPartsToAffect(Pawn pawn)
 		{
-			List<BodyPartRecord> partsToAffect = new List<BodyPartRecord>();
-
 			// The bulk of our code is only needed if we were told to apply our hediff to something specific.
 			if (Props.partsToAffect.NullOrEmpty() && Props.groupsToAffect.NullOrEmpty())
 			{
 				// We weren't, so add a null value; this represents the Whole Body.
-				partsToAffect.Add(null);
+				return new List<BodyPartRecord>(null);
 			}
-			else
+
+			IEnumerable<BodyPartRecord> source = pawn.health.hediffSet.GetNotMissingParts();
+			List<BodyPartRecord> partsToAffect = new List<BodyPartRecord>();
+
+			// Filter our source by the filterTerms.
+			if (!Props.filterTerms.NullOrEmpty())
 			{
-				IEnumerable<BodyPartRecord> source = pawn.health.hediffSet.GetNotMissingParts();
-
-				// Filter our source by the filterTerms.
-				if (!Props.filterTerms.NullOrEmpty())
+				switch (Props.filterMode)
 				{
-					switch (Props.filterMode)
-					{
-						case FilterMode.Contains:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
-						case FilterMode.StartsWith: source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.StartsWith(f))); break;
-						case FilterMode.EndsWith:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.EndsWith(f)));   break;
-						case FilterMode.Equals:     source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Equals(f)));     break;
-						case FilterMode.Excludes:   source = source.Where(r => !Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
-					}
-				}
-
-				// Add the specified parts, if they exist, to our list of parts to affect.
-				if (!Props.partsToAffect.NullOrEmpty())
-				{
-					partsToAffect.AddRange(source.Where(p => Props.partsToAffect.Contains(p.def)));
-				}
-
-				// Now do it for all the parts in the specified groups.
-				if (!Props.groupsToAffect.NullOrEmpty())
-				{
-					partsToAffect.AddRange(source.Where(p => Props.groupsToAffect.Intersect(p.groups).Any()));
+					case FilterMode.Contains:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
+					case FilterMode.StartsWith: source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.StartsWith(f))); break;
+					case FilterMode.EndsWith:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.EndsWith(f)));   break;
+					case FilterMode.Equals:     source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Equals(f)));     break;
+					case FilterMode.Excludes:   source = source.Where(r => !Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
 				}
 			}
+
+			// Add the specified parts, if they exist, to our list of parts to affect.
+			if (!Props.partsToAffect.NullOrEmpty())
+			{
+				partsToAffect.AddRange(source.Where(p => Props.partsToAffect.Contains(p.def)));
+			}
+
+			// Now do it for all the parts in the specified groups.
+			if (!Props.groupsToAffect.NullOrEmpty())
+			{
+				partsToAffect.AddRange(source.Where(p => Props.groupsToAffect.Intersect(p.groups).Any()));
+			}
+
 			// Return only distinct parts, discarding duplicates.
 			return partsToAffect.Distinct();
 		}
@@ -85,7 +83,7 @@ namespace HediffApparel
 		{
 			// Sanity test; if our pawn doesn't exist, don't even bother.
 			if (pawn.DestroyedOrNull()) return;
-			
+
 			foreach (Hediff diff in MyGetHediffs(pawn))
 			{
 				pawn.health.RemoveHediff(diff);
@@ -96,9 +94,9 @@ namespace HediffApparel
 		{
 			// Sanity test; if our pawn doesn't exist, don't even bother.
 			if (pawn.DestroyedOrNull()) return;
-			
+
 			IEnumerable<BodyPartRecord> partsToAffect = MyGetPartsToAffect(pawn);
-				
+
 			// Only start applying hediffs if there are any parts to affect.
 			if (partsToAffect.Any())
 			{
