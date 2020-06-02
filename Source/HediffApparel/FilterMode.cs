@@ -2,8 +2,8 @@
 
 namespace HediffApparel
 {
-    public enum FilterMode : byte
-    {
-        Contains, StartsWith, EndsWith, Equals, Excludes
-    }
+	public enum FilterMode : byte
+	{
+		Contains, StartsWith, EndsWith, Equals, Excludes
+	}
 }
