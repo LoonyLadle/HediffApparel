@@ -31,11 +31,11 @@ namespace HediffApparel
 		private float lastSeverity;
 		private Pawn lastWearer;
 
-		public List<Hediff> MyGetHediffs(Pawn pawn)
+		public IEnumerable<Hediff> MyGetHediffs(Pawn pawn)
 		{
 			IEnumerable<BodyPartRecord> partRecords = MyGetPartsToAffect(pawn);
 			// Return only hediffs on parts we would have added them to.
-			return pawn.health.hediffSet.hediffs.Where(d => d.def == Props.hediffDef && (Props.global || partRecords.Contains(d.Part))).ToList();
+			return pawn.health.hediffSet.hediffs.Where(d => d.def == Props.hediffDef && (Props.global || partRecords.Contains(d.Part)));
 		}
 
 		public IEnumerable<BodyPartRecord> MyGetPartsToAffect(Pawn pawn)
