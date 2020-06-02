@@ -8,189 +8,171 @@ using Verse;
 
 namespace HediffApparel
 {
-    public class CompProperties_HediffApparel : CompProperties
-    {
-        public HediffDef hediffDef;
-        public List<BodyPartDef> partsToAffect;
-        public List<BodyPartGroupDef> groupsToAffect;
-        public List<string> filterTerms;
-        public FilterMode filterMode = FilterMode.Contains;
-        public SeverityMode severityMode = SeverityMode.None;
-        public bool global;
+	public class CompHediffApparel : ThingComp
+	{
+		public CompProperties_HediffApparel Props => (CompProperties_HediffApparel)props;
 
-        public CompProperties_HediffApparel()
-        {
-            base.compClass = typeof(CompHediffApparel);
-        }
-    }
+		private float lastSeverity;
+		private Pawn lastWearer;
 
-    public class CompHediffApparel : ThingComp
-    {
-        public CompProperties_HediffApparel Props => (CompProperties_HediffApparel)base.props;
+		public IEnumerable<Hediff> MyGetHediffs(Pawn pawn)
+		{
+			IEnumerable<BodyPartRecord> partRecords = MyGetPartsToAffect(pawn);
+			// Return only hediffs on parts we would have added them to.
+			return pawn.health.hediffSet.hediffs.Where(d => d.def == Props.hediffDef && (Props.global || partRecords.Contains(d.Part)));
+		}
 
-        private float lastSeverity;
-        private Pawn lastWearer;
+		public IEnumerable<BodyPartRecord> MyGetPartsToAffect(Pawn pawn)
+		{
+			// The bulk of our code is only needed if we were told to apply our hediff to something specific.
+			if (Props.partsToAffect.NullOrEmpty() && Props.groupsToAffect.NullOrEmpty())
+			{
+				// We weren't, so add a null value; this represents the Whole Body.
+				return new List<BodyPartRecord>(null);
+			}
 
-        public List<Hediff> MyGetHediffs(Pawn pawn)
-        {
-            IEnumerable<BodyPartRecord> partRecords = MyGetPartsToAffect(pawn);
-            // Return only hediffs on parts we would have added them to.
-            return pawn.health.hediffSet.hediffs.Where(d => d.def == Props.hediffDef && (Props.global || partRecords.Contains(d.Part))).ToList();
-        }
+			IEnumerable<BodyPartRecord> source = pawn.health.hediffSet.GetNotMissingParts();
+			List<BodyPartRecord> partsToAffect = new List<BodyPartRecord>();
 
-        public IEnumerable<BodyPartRecord> MyGetPartsToAffect(Pawn pawn)
-        {
-            List<BodyPartRecord> partsToAffect = new List<BodyPartRecord>();
+			// Filter our source by the filterTerms.
+			if (!Props.filterTerms.NullOrEmpty())
+			{
+				switch (Props.filterMode)
+				{
+					case FilterMode.Contains:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
+					case FilterMode.StartsWith: source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.StartsWith(f))); break;
+					case FilterMode.EndsWith:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.EndsWith(f)));   break;
+					case FilterMode.Equals:     source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Equals(f)));     break;
+					case FilterMode.Excludes:   source = source.Where(r => !Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
+				}
+			}
 
-            // The bulk of our code is only needed if we were told to apply our hediff to something specific.
-            if (Props.partsToAffect.NullOrEmpty() && Props.groupsToAffect.NullOrEmpty())
-            {
-                // We weren't, so add a null value; this represents the Whole Body.
-                partsToAffect.Add(null);
-            }
-            else
-            {
-                IEnumerable<BodyPartRecord> source = pawn.health.hediffSet.GetNotMissingParts();
+			// Add the specified parts, if they exist, to our list of parts to affect.
+			if (!Props.partsToAffect.NullOrEmpty())
+			{
+				partsToAffect.AddRange(source.Where(p => Props.partsToAffect.Contains(p.def)));
+			}
 
-                // Filter our source by the filterTerms.
-                if (!Props.filterTerms.NullOrEmpty())
-                {
-                    switch (Props.filterMode)
-                    {
-                        case FilterMode.Contains:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
-                        case FilterMode.StartsWith: source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.StartsWith(f))); break;
-                        case FilterMode.EndsWith:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.EndsWith(f)));   break;
-                        case FilterMode.Equals:     source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Equals(f)));     break;
-                        case FilterMode.Excludes:   source = source.Where(r => !Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
-                    }
-                }
+			// Now do it for all the parts in the specified groups.
+			if (!Props.groupsToAffect.NullOrEmpty())
+			{
+				partsToAffect.AddRange(source.Where(p => Props.groupsToAffect.Intersect(p.groups).Any()));
+			}
 
-                // Add the specified parts, if they exist, to our list of parts to affect.
-                if (!Props.partsToAffect.NullOrEmpty())
-                {
-                    partsToAffect.AddRange(source.Where(p => Props.partsToAffect.Contains(p.def)));
-                }
+			// Return only distinct parts, discarding duplicates.
+			return partsToAffect.Distinct();
+		}
 
-                // Now do it for all the parts in the specified groups.
-                if (!Props.groupsToAffect.NullOrEmpty())
-                {
-                    partsToAffect.AddRange(source.Where(p => Props.groupsToAffect.Intersect(p.groups).Any()));
-                }
-            }
-            // Return only distinct parts, discarding duplicates.
-            return partsToAffect.Distinct();
-        }
+		private void MyRemoveHediffs(Pawn pawn)
+		{
+			// Sanity test; if our pawn doesn't exist, don't even bother.
+			if (pawn.DestroyedOrNull()) return;
 
-        private void MyRemoveHediffs(Pawn pawn)
-        {
-            // Sanity test; if our pawn doesn't exist, don't even bother.
-            if (pawn.DestroyedOrNull()) return;
-            
-            foreach (Hediff diff in MyGetHediffs(pawn))
-            {
-                pawn.health.RemoveHediff(diff);
-            }
-        }
+			foreach (Hediff diff in MyGetHediffs(pawn))
+			{
+				pawn.health.RemoveHediff(diff);
+			}
+		}
 
-        private void MyAddHediffs(Pawn pawn)
-        {
-            // Sanity test; if our pawn doesn't exist, don't even bother.
-            if (pawn.DestroyedOrNull()) return;
-            
-            IEnumerable<BodyPartRecord> partsToAffect = MyGetPartsToAffect(pawn);
-                
-            // Only start applying hediffs if there are any parts to affect.
-            if (partsToAffect.Any())
-            {
-                foreach (BodyPartRecord partRecord in partsToAffect)
-                {
-                    // Don't apply hediffs to parts that already have them.
-                    if (!pawn.health.hediffSet.HasHediff(Props.hediffDef, partRecord))
-                    {
-                        pawn.health.AddHediff(HediffMaker.MakeHediff(Props.hediffDef, pawn, partRecord));
-                    }
-                }
-                // Update our severity when done (even if our hediffs didn't change).
-                MyUpdateSeverity(pawn, SeverityMode.Quality);
-            }
-        }
+		private void MyAddHediffs(Pawn pawn)
+		{
+			// Sanity test; if our pawn doesn't exist, don't even bother.
+			if (pawn.DestroyedOrNull()) return;
 
-        public void MyUpdateSeverity(Pawn pawn, SeverityMode severityMode)
-        {
-            // Mode test; if our input mode is not the mode this comp uses, return.
-            if (severityMode != Props.severityMode) return;
+			IEnumerable<BodyPartRecord> partsToAffect = MyGetPartsToAffect(pawn);
 
-            // Sanity test; if our pawn doesn't exist, don't even bother.
-            if (pawn.DestroyedOrNull()) return;
+			// Only start applying hediffs if there are any parts to affect.
+			if (partsToAffect.Any())
+			{
+				foreach (BodyPartRecord partRecord in partsToAffect)
+				{
+					// Don't apply hediffs to parts that already have them.
+					if (!pawn.health.hediffSet.HasHediff(Props.hediffDef, partRecord))
+					{
+						pawn.health.AddHediff(HediffMaker.MakeHediff(Props.hediffDef, pawn, partRecord));
+					}
+				}
+				// Update our severity when done (even if our hediffs didn't change).
+				MyUpdateSeverity(pawn, SeverityMode.Quality);
+			}
+		}
 
-            float currentSeverity = Props.hediffDef.initialSeverity;
+		public void MyUpdateSeverity(Pawn pawn, SeverityMode severityMode)
+		{
+			// Mode test; if our input mode is not the mode this comp uses, return.
+			if (severityMode != Props.severityMode) return;
 
-            switch (severityMode)
-            {
-                case SeverityMode.Durability:
-                    // Severity DECREASES as durability is depleted.
-                    currentSeverity = (float)parent.HitPoints / parent.MaxHitPoints;
-                    break;
-                case SeverityMode.Quality:
-                    // Severity INCREASES as quality is improved.
-                    if (!parent.TryGetQuality(out QualityCategory qc))
-                    {
-                        // Although a non-fatal error, this is probably not intentional behavior.
-                        Log.Warning($"CompHediffApparel.MyUpdateSeverity: severityMode = Quality but {parent.Label} has no quality.");
-                    }
-                    currentSeverity = ((byte)qc + 1f) / Enum.GetNames(typeof(QualityCategory)).Length;
-                    break;
-            }
+			// Sanity test; if our pawn doesn't exist, don't even bother.
+			if (pawn.DestroyedOrNull()) return;
 
-            // Round our current severity to the ingame display limit. One part in a thousand is precise enough.
-            currentSeverity = (float)Math.Round(currentSeverity, 3);
+			float currentSeverity = Props.hediffDef.initialSeverity;
 
-            // Only update if our durability has changed.
-            if (lastSeverity != currentSeverity)
-            {
-                // Set the severity for each of our hediffs.
-                foreach (Hediff diff in MyGetHediffs(pawn))
-                {
-                    diff.Severity = currentSeverity;
-                }
-                // Update our durability so we don't run code too often.
-                lastSeverity = currentSeverity;
-            }
-        }
+			switch (severityMode)
+			{
+				case SeverityMode.Durability:
+					// Severity DECREASES as durability is depleted.
+					currentSeverity = (float)parent.HitPoints / parent.MaxHitPoints;
+					break;
+				case SeverityMode.Quality:
+					// Severity INCREASES as quality is improved.
+					if (!parent.TryGetQuality(out QualityCategory qc))
+					{
+						// Although a non-fatal error, this is probably not intentional behavior.
+						Log.Warning($"CompHediffApparel.MyUpdateSeverity: severityMode = Quality but {parent.Label} has no quality.");
+					}
+					currentSeverity = ((byte)qc + 1f) / Enum.GetNames(typeof(QualityCategory)).Length;
+					break;
+			}
 
-        public override void PostDestroy(DestroyMode mode, Map previousMap)
-        {
-            base.PostDestroy(mode, previousMap);
+			// Round our current severity to the ingame display limit. One part in a thousand is precise enough.
+			currentSeverity = (float)Math.Round(currentSeverity, 3);
 
-            // We've been destroyed, so remove our effects.
-            MyRemoveHediffs(lastWearer);
-        }
+			// Only update if our durability has changed.
+			if (lastSeverity != currentSeverity)
+			{
+				// Set the severity for each of our hediffs.
+				foreach (Hediff diff in MyGetHediffs(pawn))
+				{
+					diff.Severity = currentSeverity;
+				}
+				// Update our durability so we don't run code too often.
+				lastSeverity = currentSeverity;
+			}
+		}
 
-        public override void CompTick()
-        {
-            base.CompTick();
+		public override void PostDestroy(DestroyMode mode, Map previousMap)
+		{
+			base.PostDestroy(mode, previousMap);
 
-            // We know our parent is an Apparel; cast it as such so we can access its Wearer member.
-            Apparel apparel = parent as Apparel;
+			// We've been destroyed, so remove our effects.
+			MyRemoveHediffs(lastWearer);
+		}
 
-            // Apparel has no signal for when it is first worn, so we check for this on CompTick().
-            // We only need to do something if our wearer has changed, though.
-            if (apparel.Wearer != lastWearer)
-            {
-                // It has, so remove our effects from the last wearer and apply them to the new one.
-                MyRemoveHediffs(lastWearer);
-                MyAddHediffs(apparel.Wearer);
-                // Update our wearer so we don't run code too often.
-                lastWearer = apparel.Wearer;
-                // Set our last recorded durability to some impossible value to force an update.
-                lastSeverity = -1;
-            }
+		public override void CompTick()
+		{
+			base.CompTick();
 
-            // Update our severity every 60 ticks if our wearer is valid.
-            if (!apparel.Wearer.DestroyedOrNull() && apparel.Wearer.IsHashIntervalTick(60))
-            {
-                MyUpdateSeverity(apparel.Wearer, SeverityMode.Durability);
-            }
-        }
-    }
+			// We know our parent is an Apparel; cast it as such so we can access its Wearer member.
+			Apparel apparel = parent as Apparel;
+
+			// Apparel has no signal for when it is first worn, so we check for this on CompTick().
+			// We only need to do something if our wearer has changed, though.
+			if (apparel.Wearer != lastWearer)
+			{
+				// It has, so remove our effects from the last wearer and apply them to the new one.
+				MyRemoveHediffs(lastWearer);
+				MyAddHediffs(apparel.Wearer);
+				// Update our wearer so we don't run code too often.
+				lastWearer = apparel.Wearer;
+				// Set our last recorded durability to some impossible value to force an update.
+				lastSeverity = -1;
+			}
+
+			// Update our severity every 60 ticks if our wearer is valid.
+			if (!apparel.Wearer.DestroyedOrNull() && apparel.Wearer.IsHashIntervalTick(60))
+			{
+				MyUpdateSeverity(apparel.Wearer, SeverityMode.Durability);
+			}
+		}
+	}
 }

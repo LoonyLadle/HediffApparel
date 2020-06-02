@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <ModSyncNinjaData>
-  <ID>8efaa7c4-9976-449c-9016-bb379874eb16</ID>
-  <ModName>Hediff Apparel Resource</ModName>
-  <Version>2.0.0</Version>
-  <SaveBreaking>False</SaveBreaking>
-  <Host name="Github">
-    <Owner>LoonyLadle</Owner>
-    <Project>HediffApparel</Project>
-    <AboutDir>About</AboutDir>
-    <DownloadFrom>ModSyncReleases</DownloadFrom>
-    <Branch>master</Branch>
-  </Host>
+	<ID>8efaa7c4-9976-449c-9016-bb379874eb16</ID>
+	<ModName>Hediff Apparel Resource</ModName>
+	<Version>2.1.0</Version>
+	<SaveBreaking>False</SaveBreaking>
+	<Host name="Github">
+		<Owner>LoonyLadle</Owner>
+		<Project>HediffApparel</Project>
+		<AboutDir>About</AboutDir>
+		<DownloadFrom>ModSyncReleases</DownloadFrom>
+		<Branch>master</Branch>
+	</Host>
 </ModSyncNinjaData>

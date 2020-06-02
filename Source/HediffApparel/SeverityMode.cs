@@ -2,8 +2,8 @@
 
 namespace HediffApparel
 {
-    public enum SeverityMode : byte
-    {
-        None, Durability, Quality
-    }
+	public enum SeverityMode : byte
+	{
+		None, Durability, Quality
+	}
 }
