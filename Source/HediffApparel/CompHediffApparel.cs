@@ -60,7 +60,7 @@ namespace HediffApparel
 						case FilterMode.Contains:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
 						case FilterMode.StartsWith: source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.StartsWith(f))); break;
 						case FilterMode.EndsWith:   source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.EndsWith(f)));   break;
-						case FilterMode.Equals:	 source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Equals(f)));	 break;
+						case FilterMode.Equals:     source = source.Where(r =>  Props.filterTerms.Any(f => r.Label.Equals(f)));     break;
 						case FilterMode.Excludes:   source = source.Where(r => !Props.filterTerms.Any(f => r.Label.Contains(f)));   break;
 					}
 				}
